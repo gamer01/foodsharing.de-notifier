@@ -13,12 +13,14 @@ from bs4 import BeautifulSoup
 
 from mailsender import MailSender
 
-locale.setlocale(locale.LC_ALL, "de_DE.utf8")
-picklefile = "data.pkl"
 
+credencials = ConfigParser()
+credencials.read("credencials.conf")
 conf = ConfigParser()
-conf.read("credencials.conf")
+conf.read("general.conf")
 
+
+locale.setlocale(locale.LC_ALL, conf.get("DEFAULT","locale"))
 
 class Termin(datetime):
     n_empty_slots = 0
@@ -48,24 +50,23 @@ class Termin(datetime):
         return t
 
 
-host = "https://foodsharing.de/"
 
 
 def activate_session(session):
-    usr, pwd = itemgetter('usr', 'pwd')(conf["foodsharing.de"])
+    usr, pwd = itemgetter('usr', 'pwd')(credencials["foodsharing.de"])
     data = {"email": usr, "password": pwd}
-    session.post(host + "api/user/login", json=data)
+    session.post(conf.get("foodsharing.de","host") + "api/user/login", json=data)
     return session
 
 
 def get_firm(s):
-    soup = BeautifulSoup(s.get(host + "?page=dashboard").text, features="lxml")
+    soup = BeautifulSoup(s.get(conf.get("foodsharing.de","host") + "?page=dashboard").text, features="lxml")
     firms = soup.select(".field:contains('Du holst Lebensmittel ab bei') .ui-corner-all")
     return {a.text: a["href"] for a in firms}
 
 
 def get_events(s, firm, url):
-    soup = BeautifulSoup(s.get(host + url).text, features="lxml")
+    soup = BeautifulSoup(s.get(conf.get("foodsharing.de","host") + url).text, features="lxml")
     termine = soup.select(".field:contains('Nächste Abholtermine') .element-wrapper")
     return [Termin.create_instance(t, firm) for t in termine]
 
@@ -75,7 +76,7 @@ def send_mails(data):
     with open("emails.txt") as f:
         mails = [line.strip() for line in f]
 
-    host, usr, pwd, sender = itemgetter("smtp_server", "smtp_username", "pwd", "sender_email")(conf["email"])
+    host, usr, pwd, sender = itemgetter("smtp_server", "smtp_username", "smtp_pwd", "sender_email")(credencials["email"])
     mailsender = MailSender(host, usr, pwd, sender)
     print(f"\nSending {len(mails)} Emails", end="")
     try:
@@ -98,11 +99,12 @@ if __name__ == "__main__":
         for title, url in firms.items():
             events = get_events(s, title, url)
             for event in events:
-                if event.date() < date.today() + timedelta(days=7) and event.has_empty():
+                if event.date() < date.today() + timedelta(days=conf.getint("DEFAULT","days")) and event.has_empty():
                     data.add(event)
 
     old_events = set()
     data_hashes = {t.key() for t in data}
+    picklefile = conf.get("DEFAULT","picklefile")
     if os.path.isfile(picklefile):
         with open(picklefile, "rb") as f:
             # load old events and update
@@ -110,6 +112,6 @@ if __name__ == "__main__":
     with open(picklefile, "wb") as f:
         pickle.dump(data_hashes, f)
 
-    if True or len(data_hashes - old_events) > 0:
+    if len(data_hashes - old_events) > 0:
         # a new event has been added
         send_mails(data)

@@ -1,11 +1,6 @@
-from configparser import ConfigParser
 from datetime import date
 from email.message import Message
-from operator import itemgetter
 from smtplib import SMTP
-
-conf = ConfigParser()
-conf.read("credencials.conf")
 
 
 class MailSender:
@@ -31,8 +26,3 @@ class MailSender:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.smtp.quit()
-
-    @staticmethod
-    def createinstance_from_conf():
-        host, usr, pwd, sender = itemgetter("smtp_server", "smtp_username", "pwd", "sender_email")(conf["email"])
-        return MailSender(host, usr, pwd, sender)
