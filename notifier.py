@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+import json
 import locale
 import os.path
-import pickle
 import socket
 from configparser import ConfigParser
 from datetime import date, datetime, timedelta
@@ -15,8 +15,8 @@ from bs4 import BeautifulSoup
 
 from mailsender import MailSender
 
-credencials = ConfigParser()
-credencials.read("credencials.conf")
+credentials = ConfigParser()
+credentials.read("credentials.conf")
 conf = ConfigParser()
 conf.read("general.conf")
 
@@ -42,7 +42,7 @@ class Termin(datetime):
         return self.n_empty_slots > 0
 
     def key(self):
-        return self.timestamp(), self.firm
+        return self.isoformat(), self.firm
 
     @staticmethod
     def create_instance(soup, firm):
@@ -52,7 +52,7 @@ class Termin(datetime):
 
 
 def activate_session(session):
-    usr, pwd = itemgetter('usr', 'pwd')(credencials["foodsharing.de"])
+    usr, pwd = itemgetter('usr', 'pwd')(credentials["foodsharing.de"])
     data = {"email": usr, "password": pwd}
     session.post(conf.get("foodsharing.de", "host") + "api/user/login", json=data)
     return session
@@ -76,7 +76,7 @@ def send_mails(data):
         mails = [line.strip() for line in f]
 
     host, usr, pwd, sender = itemgetter("smtp_server", "smtp_username", "smtp_pwd", "sender_email")(
-        credencials["email"])
+        credentials["email"])
     mailsender = MailSender(host, usr, pwd, sender)
     print(f"\nSending {len(mails)} Emails", end="")
     try:
@@ -104,13 +104,13 @@ if __name__ == "__main__":
 
     old_events = set()
     new_events = {t.key() for t in data}
-    picklefile = conf.get("DEFAULT", "picklefile")
-    if os.path.isfile(picklefile):
-        with open(picklefile, "rb") as f:
+    datafile = conf.get("DEFAULT", "datafile")
+    if os.path.isfile(datafile):
+        with open(datafile, "r") as f:
             # load old events and update
-            old_events = pickle.load(f)
-    with open(picklefile, "wb") as f:
-        pickle.dump(new_events, f)
+            old_events = set((tuple(elem) for elem in json.load(f)))
+    with open(datafile, "w") as f:
+        json.dump(list(new_events), f)
 
     if new_events - old_events:
         # a new event has been added
