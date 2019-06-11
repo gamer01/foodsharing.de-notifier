@@ -2,7 +2,7 @@ This tool will login on your foodsharing page, check your firms for pickups with
 
 It is very useful to run this as a daily cron-job
 
-The tool will create a json
+The tool will create a json-file with the current pickups with empty slots, to prevent from sending emails when acutally not new information occured
 
 
 ## Two additional files need to be created
