@@ -60,8 +60,12 @@ def activate_session(session):
 
 def get_firm(s):
     soup = BeautifulSoup(s.get(conf.get("foodsharing.de", "host") + "?page=dashboard").text, features="lxml")
-    firms = soup.select(".field:contains('Du holst Lebensmittel ab bei') .ui-corner-all")
-    return {a.text: a["href"] for a in firms}
+    # return all hrefs on the dashboard page that link to "fsbetrieb" meaning firm
+    # the complicated select picks all a tags that have no children
+    # make sure that each firm is only added once
+    firms = {a["href"]: a.text for a in soup.select("a:not(:has(> *))") if "page=fsbetrieb" in a["href"]}
+    # now we can flip the dictionary
+    return {v: k for k, v in firms.items()}
 
 
 def get_events(s, firm, url):
@@ -71,18 +75,19 @@ def get_events(s, firm, url):
 
 
 def send_mails(data):
-    s = "\n".join((str(t) for t in sorted(data)))
+    body = "\n".join((str(t) for t in sorted(data)))
     with open("emails.txt") as f:
         mails = [line.strip() for line in f]
 
     host, usr, pwd, sender = itemgetter("smtp_server", "smtp_username", "smtp_pwd", "sender_email")(
         credentials["email"])
     mailsender = MailSender(host, usr, pwd, sender)
+    print(body)
     print(f"\nSending {len(mails)} Emails", end="")
     try:
         with mailsender:
             for mail in mails:
-                mailsender.sendmail(mail, s)
+                mailsender.sendmail(mail, body)
     except SMTPAuthenticationError:
         error("EmailAuthentication Failed. No emails sent.")
     except socket.gaierror:
