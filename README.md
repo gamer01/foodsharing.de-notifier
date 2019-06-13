@@ -29,5 +29,8 @@ example credentials.conf
     # used for the email header
     sender_email  = <email like "max.mustermann@mailbox.org">
 
-### Other
+### Structure of the notification email
+Modify `email.tmpl`. You can use `{varname}` variables and those variables need to exist in the `general.conf` file.
+
+### Other settings
 the rest of the configuration is done inside the `general.conf`
