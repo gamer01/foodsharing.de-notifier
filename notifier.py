@@ -75,9 +75,13 @@ def get_events(s, firm, url):
 
 
 def send_mails(data):
-    body = "\n".join((str(t) for t in sorted(data)))
+    maintext = "\n".join((str(t) for t in sorted(data)))
     with open("emails.txt") as f:
         mails = [line.strip() for line in f]
+    with open(conf.get("DEFAULT","email_template")) as f:
+        tmpl = f.read()
+    body = tmpl.format(list=maintext,**{k: v for d in map(dict,dict(conf).values()) for k, v in d.items()})
+
 
     host, usr, pwd, sender = itemgetter("smtp_server", "smtp_username", "smtp_pwd", "sender_email")(
         credentials["email"])
@@ -104,7 +108,7 @@ if __name__ == "__main__":
         for title, url in firms.items():
             events = get_events(s, title, url)
             for event in events:
-                if event.date() < date.today() + timedelta(days=conf.getint("DEFAULT", "days")) and event.has_empty():
+                if event.date() < date.today() + timedelta(days=conf.getint("DEFAULT", "lookahead_days")) and event.has_empty():
                     data.add(event)
 
     old_events = set()
