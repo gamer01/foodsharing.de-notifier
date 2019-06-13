@@ -1,11 +1,14 @@
+## What it does
 This tool will login on your foodsharing page, check your firms for pickups with empty slots and send emails as a notification
+### Features
+- sends email notifications
+- trys to send as little emails as possible (only send a mail if a empty slot moves into the configured time window)
 
-It is very useful to run this as a daily cron-job
+## Installation
+It is very useful to run this as a daily cron-job, such that emails are sent automatically
 
-The tool will create a json-file with the current pickups with empty slots, to prevent from sending emails when acutally not new information occured
-
-
-## Two additional files need to be created
+## Configuration:
+### Two additional files need to be created
 example emails.txt
 
     max.mustermann@mailbox.org
@@ -25,3 +28,6 @@ example credentials.conf
 
     # used for the email header
     sender_email  = <email like "max.mustermann@mailbox.org">
+
+### Other
+the rest of the configuration is done inside the `general.conf`
