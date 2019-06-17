@@ -36,7 +36,7 @@ class Termin(datetime):
         self.firm = firm
 
     def __str__(self):
-        return f"{self.strftime('%a %d.%b')}: {self.n_empty_slots} Slots bei {self.firm}"
+        return f"{self.strftime('%a %d.%b %H:%M')}: {self.n_empty_slots} Slots bei {self.firm}"
 
     def has_empty(self):
         return self.n_empty_slots > 0
