@@ -2,8 +2,8 @@
 
 import json
 import locale
-import re
 import os.path
+import re
 import socket
 from configparser import ConfigParser
 from datetime import date, datetime, timedelta
@@ -48,7 +48,7 @@ class Termin(datetime):
     @staticmethod
     def create_instance(data, firm):
         dt = datetime.fromisoformat(data['date'])
-        t = Termin(dt, data['totalSlots']-len(data['occupiedSlots']), firm)
+        t = Termin(dt, data['totalSlots'] - len(data['occupiedSlots']), firm)
         return t
 
 
@@ -67,12 +67,6 @@ def get_firm(s):
     firms = {a["href"]: a.text for a in soup.select("a:not(:has(> *))") if "page=fsbetrieb" in a["href"]}
     # now we can flip the dictionary
     return {v: k for k, v in firms.items()}
-
-
-def get_events(s, firm, url):
-    termine =s.get(conf.get("foodsharing.de", "host") + 'api/stores/'+re.search(r"id=(\d+)",url)[1]+'/pickups').json()
-    #termine = soup.select(".card:contains('Abholtermine') .card-body .card .card-body")
-    return [Termin.create_instance(t, firm) for t in termine['pickups']]
 
 
 def send_mails(data):
@@ -107,7 +101,10 @@ if __name__ == "__main__":
         activate_session(s)
         firms = get_firm(s)
         for title, url in firms.items():
-            events = get_events(s, title, url)
+            termine = s.get(
+                conf.get("foodsharing.de", "host") + 'api/stores/' + re.search(r"id=(\d+)", url)[1] + '/pickups').json()
+            events = [Termin.create_instance(t, title) for t in termine['pickups']]
+
             for event in events:
                 if date.today() < event.date() < date.today() + timedelta(
                         days=conf.getint("DEFAULT", "lookahead_days")) and event.has_empty():
