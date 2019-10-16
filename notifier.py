@@ -2,6 +2,7 @@
 
 import json
 import locale
+import re
 import os.path
 import socket
 from configparser import ConfigParser
@@ -45,9 +46,9 @@ class Termin(datetime):
         return self.isoformat(), self.firm
 
     @staticmethod
-    def create_instance(soup, firm):
-        dt = datetime.fromisoformat(soup.select("input")[0]["value"])
-        t = Termin(dt, len(soup.select("li.empty")), firm)
+    def create_instance(data, firm):
+        dt = datetime.fromisoformat(data['date'])
+        t = Termin(dt, data['totalSlots']-len(data['occupiedSlots']), firm)
         return t
 
 
@@ -69,19 +70,19 @@ def get_firm(s):
 
 
 def get_events(s, firm, url):
-    soup = BeautifulSoup(s.get(conf.get("foodsharing.de", "host") + url).text, features="lxml")
-    termine = soup.select(".field:contains('Nächste Abholtermine') .element-wrapper")
-    return [Termin.create_instance(t, firm) for t in termine]
+    termine =s.get(conf.get("foodsharing.de", "host") + 'api/stores/'+re.search(r"id=(\d+)",url)[1]+'/pickups').json()
+    #termine = soup.select(".card:contains('Abholtermine') .card-body .card .card-body")
+    return [Termin.create_instance(t, firm) for t in termine['pickups']]
 
 
 def send_mails(data):
     maintext = "\n".join((str(t) for t in sorted(data)))
     with open("emails.txt") as f:
         mails = [line.strip() for line in f]
-    with open(conf.get("DEFAULT","email_template")) as f:
+    with open(conf.get("DEFAULT", "email_template")) as f:
         tmpl = f.read()
-    body = tmpl.format(list=maintext,**{k: v for d in map(dict,dict(conf).values()) for k, v in d.items()})
-
+    # unpacks all variables from the general config and passes them as key-value pairs
+    body = tmpl.format(list=maintext, **{k: v for d in map(dict, dict(conf).values()) for k, v in d.items()})
 
     host, usr, pwd, sender = itemgetter("smtp_server", "smtp_username", "smtp_pwd", "sender_email")(
         credentials["email"])
@@ -108,7 +109,8 @@ if __name__ == "__main__":
         for title, url in firms.items():
             events = get_events(s, title, url)
             for event in events:
-                if event.date() < date.today() + timedelta(days=conf.getint("DEFAULT", "lookahead_days")) and event.has_empty():
+                if date.today() < event.date() < date.today() + timedelta(
+                        days=conf.getint("DEFAULT", "lookahead_days")) and event.has_empty():
                     data.add(event)
 
     old_events = set()
