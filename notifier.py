@@ -61,12 +61,10 @@ def activate_session(session):
 
 def get_firm(s):
     soup = BeautifulSoup(s.get(conf.get("foodsharing.de", "host") + "?page=dashboard").text, features="lxml")
-    # return all hrefs on the dashboard page that link to "fsbetrieb" meaning firm
-    # the complicated select picks all a tags that have no children
-    # make sure that each firm is only added once
-    firms = {a["href"]: a.text for a in soup.select("a:not(:has(> *))") if "page=fsbetrieb" in a["href"]}
+    # reading the firms from the data-vue-props
+    firms = json.loads(re.search("data-vue-props='([\s\S]*)'", str(soup), re.MULTILINE)[1])['stores']
     # now we can flip the dictionary
-    return {v: k for k, v in firms.items()}
+    return {d['id']: d['name'] for d in firms}
 
 
 def send_mails(data):
@@ -100,9 +98,11 @@ if __name__ == "__main__":
     with requests.Session() as s:
         activate_session(s)
         firms = get_firm(s)
-        for title, url in firms.items():
-            termine = s.get(
-                conf.get("foodsharing.de", "host") + 'api/stores/' + re.search(r"id=(\d+)", url)[1] + '/pickups').json()
+        for id, title in firms.items():
+            termine = s.get(conf.get("foodsharing.de", "host") + f'api/stores/{id}/pickups').json()
+            if 'pickups' not in termine:
+                continue
+
             events = [Termin.create_instance(t, title) for t in termine['pickups']]
 
             for event in events:
